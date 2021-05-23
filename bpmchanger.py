@@ -3,25 +3,28 @@ import ffmpy
 from pydub import AudioSegment
 import os
 from shutil import move
-#file=input(".osu file: ")
-#file=r"/home/ovo/.local/share/osu-wine/OSU/Songs/575330 Imperial Circus Dead Decadence - Yomi yori Kikoyu, Koukoku no Tou to Honoo no Shoujo/Imperial Circus Dead Decadence - Yomi yori Kikoyu, Koukoku no Tou to Honoo no Shoujo. (PoNo) [Reverberation].osu"
-#file=r"/home/ovo/.local/share/osu-wine/OSU/Songs/1081431 Imperial Circus Dead Decadence - Songs Compilation/Imperial Circus Dead Decadence - Songs Compilation (Val) [Gyakusatsu].osu"
-file=r"/home/ovo/.local/share/osu-wine/OSU/Songs/382400 DragonForce - Through the Fire and Flames/DragonForce - Through the Fire and Flames (Ponoyoshi) [Myth].osu"
-#file=input("path to .osu file: ")
-prefix=os.path.split(file)[0]
-suffix=os.path.split(file)[1]
-print(prefix)
 
+def osupathDOTtxt(): #check for ospath.txt
+    try:
+        f = open(f"{os.getcwd()}/osupath.txt", 'r')
+        osupath=f.read()
+        f.close()
+    except:
+        osupath=input("Path to osu! folder (you won't be asked for it again): ")
+        print('')
+        f = open(f"{os.getcwd()}/osupath.txt", 'w')
+        f.write(osupath)
+        f.close()
+    return osupath
 
-#this is liteally taken from here https://github.com/FunOrange/osu-trainer/blob/master/osu-trainer/DifficultyCalculator.cs and translated into python
-#I have no idea how it works but I hope this works
+#this is taken from here https://github.com/FunOrange/osu-trainer/blob/master/osu-trainer/DifficultyCalculator.cs and translated into python
 def ApproachRateToMs(approachRate):
     if(approachRate <= 5):
         return 1800 - approachRate * 120
     else:
         remainder = approachRate - 5
         return 1200 - remainder * 150
-def MsToApproachRate(ms): #this makes no sense
+def MsToApproachRate(ms):
     smallestDiff = 100000 #initial value
     AR=0
     while(AR<=110):
@@ -47,26 +50,72 @@ def CalculateMultipliedOD(OD, multiplier):
     return newbpmOD
 
 
+path=input("Beatmap id or path to beatmap folder: ")
+try:
+    id=int(path)
+    osupath=osupathDOTtxt()
+    for btmp in os.listdir(f"{osupath}/Songs/"):
+        #print(btmp)
+        if(btmp.split(" ")[0]==str(id)):
+            print(f"Selected beatmapset: {btmp}")
+            print("Diffs:")
+            diffs=[]
+            i=1
+            for diff in os.listdir(f"{osupath}/Songs/{btmp}/"):
+                if(diff[(len(diff)-5):]=="].osu"):
+                    print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+                    diffs.append(f"{osupath}/Songs/{btmp}/{diff}")
+                    i=i+1
+            diff=int(input("Select difficulty: "))
+            file=diffs[diff-1]
+            #print(path)
+except ValueError:
+    osupath=osupathDOTtxt()
+    print(f"Selected beatmapset: {os.path.split(path)[1]}")
+    print("Diffs:")
+    diffs=[]
+    i=1
+    for diff in os.listdir(path):
+        if(diff[(len(diff)-5):]=="].osu"):
+            print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+            diffs.append(f"{path}/{diff}")
+            i=i+1
+    diff=int(input("Select difficulty: "))
+    file=diffs[diff-1]
+    #print(path)
+
+prefix=os.path.split(file)[0]
+suffix=os.path.split(file)[1]
 
 
-#get the bpm
+#open the .osu file and save it's contents into a varible
 f=open(file, 'r')
 text=str(f.read())
-#print(text.splitlines()[3])
 f.close()
 
+#:(((
+if(text.splitlines()[0]=="osu file format v14"):
+    pass
+else:
+    print(f"(unfortunately) the script can only edit osu file format v14(this map file is: {text.splitlines()[0]})")
+    x = input("Do you wish to continue?(BEWARE THAT SOMETHING MIGHT BREAK)(y,N):")
+    if(x=='y' or x=='Y'):
+        pass
+    else:
+        exit()
+
+
+#get the beatLength
 l=-1
 for line in text.splitlines():
     l=l+1
-    try:
-        if(line=="[TimingPoints]"):
-            curbeat=float(text.splitlines()[l+1].split(',')[1])
-            print(curbeat)
-            break
-    except:
-        print("can't find timing points")
-    
-curbpm=math.ceil(60000/curbeat)
+    if(line=="[TimingPoints]"):
+        beatLength=float(text.splitlines()[l+1].split(',')[1])
+        print(beatLength)
+        break
+
+#convert beatLength to BPM
+curbpm=math.ceil(60000/beatLength)
 print(f'bpm={curbpm}')
 
 nextbpm=input('nextbpm=')
@@ -76,83 +125,54 @@ except:
     print("nextbpm has to be a number")
     exit()
 
-
 multiplier=nextbpm/curbpm
-formatted_multiplier="{:.3f}".format(round(nextbpm/curbpm, 3))
+formatted_multiplier="{:.3f}".format(round(multiplier, 3)) #only show 3 decimals of the multiplier for looks' sake
 
 
 
-#░█████╗░██╗░░░██╗██████╗░██╗░█████╗░
-#██╔══██╗██║░░░██║██╔══██╗██║██╔══██╗
-#███████║██║░░░██║██║░░██║██║██║░░██║
-#██╔══██║██║░░░██║██║░░██║██║██║░░██║
-#██║░░██║╚██████╔╝██████╔╝██║╚█████╔╝
-#╚═╝░░╚═╝░╚═════╝░╚═════╝░╚═╝░╚════╝░
-#this text is dumb
-
-#get the name of the audio file
+#get the path to the audio file
 for line in text.splitlines():
     if(line.split(': ')[0]=="AudioFilename"):
-        OGaudio=r"{}/{}".format(prefix,line.split(': ')[1])
+        OGaudio=f"{prefix}/{line.split(': ')[1]}"
         break
 print(OGaudio)
 
 #convert to wav
-NEWaudio=AudioSegment.from_mp3(OGaudio)
-NEWaudio.export(r"{}/audio(x{}, {}BPM).wav".format(prefix, formatted_multiplier, nextbpm), format='wav')
-audio=r"{}/audio(x{}, {}BPM).wav".format(prefix, formatted_multiplier, nextbpm)
-NEWaudio=AudioSegment.from_wav(audio)
+audio=f"{OGaudio[0:-4]} {formatted_multiplier}x ({nextbpm}bpm).wav"
+NEWaudio=AudioSegment.from_mp3(OGaudio).export(audio, format='wav')
 
 #get the length of the original audio file
-OGlength=len(NEWaudio)
+OGlength=len(AudioSegment.from_wav(audio))
 
 #speed up/down the audio file
-ff = ffmpy.FFmpeg(inputs={f"{audio}": None}, outputs={r"{}/temp.wav".format(prefix): ["-filter:a", f"atempo={multiplier}"]})
+audioTemp=f"{prefix}/temp.wav"
+ff = ffmpy.FFmpeg(inputs={audio: None}, outputs={audioTemp: ["-filter:a", f"atempo={multiplier}"]})
 ff.run()
 
-move(r"{}/temp.wav".format(prefix), audio)
+move(audioTemp, audio)
 
 #convert back to mp3
 NEWaudio=AudioSegment.from_wav(audio)
 NEWaudio.export(f"{audio[0:-4]}.mp3", format='mp3')
-
-#get the length of the new audio file
-NEWaudio=AudioSegment.from_mp3(f"{audio[0:-4]}.mp3")
-NEWlength=len(NEWaudio)
-
-#print(f'NEWlenght {NEWlength}')
-#print(f'OGlenght {OGlength}')
-
-#x=input(' ')
+NEWlength=len(NEWaudio) #get the length of the new audio file
+audio=f"{audio[0:-4]}.mp3"
 
 
 
-#░░░░█████╗░░██████╗██╗░░░██╗    ███████╗██╗██╗░░░░░███████╗
-#░░░██╔══██╗██╔════╝██║░░░██║    ██╔════╝██║██║░░░░░██╔════╝
-#░░░██║░░██║╚█████╗░██║░░░██║    █████╗░░██║██║░░░░░█████╗░░
-#░░░██║░░██║░╚═══██╗██║░░░██║    ██╔══╝░░██║██║░░░░░██╔══╝░░
-#██╗╚█████╔╝██████╔╝╚██████╔╝    ██║░░░░░██║███████╗███████╗
-#╚═╝░╚════╝░╚═════╝░░╚═════╝░    ╚═╝░░░░░╚═╝╚══════╝╚══════╝
-#CBT
-#██████╗░███████╗░██╗░░░░░░░██╗██████╗░██╗████████╗███████╗
-#██╔══██╗██╔════╝░██║░░██╗░░██║██╔══██╗██║╚══██╔══╝██╔════╝
-#██████╔╝█████╗░░░╚██╗████╗██╔╝██████╔╝██║░░░██║░░░█████╗░░
-#██╔══██╗██╔══╝░░░░████╔═████║░██╔══██╗██║░░░██║░░░██╔══╝░░
-#██║░░██║███████╗░░╚██╔╝░╚██╔╝░██║░░██║██║░░░██║░░░███████╗
-#╚═╝░░╚═╝╚══════╝░░░╚═╝░░░╚═╝░░╚═╝░░╚═╝╚═╝░░░╚═╝░░░╚══════╝
-
-f = open(f'{prefix}/temp.osu', 'w')
+#start rewriting .osu file
+temp=f"{osupath}/temp.osu"
+f = open(temp, 'w')
 f.write('')
 f.close()
 
-f = open(f'{prefix}/temp.osu', 'a')
+f = open(temp, 'a')
 
 y=0
 i=0
 l=-1
 for line in text.splitlines():
     l=l+1
-    if(i>1): #skip however many lines it went through the while True statements
+    if(i>1): #skip loop for however many times it went through the while True statements
         i=i-1
         continue
     elif(line.split(": ")[0]=="AudioFilename"): #mou ii kai dt moment
@@ -176,7 +196,7 @@ for line in text.splitlines():
         continue
     elif(line.split(':')[0]=="Version"): #difficulty name
         diff=line.split(":")[1]
-        f.write(f'Version:{line.split(":")[1]} x{formatted_multiplier} ({nextbpm}bpm)\r\n')
+        f.write(f'Version:{line.split(":")[1]} {formatted_multiplier}x ({nextbpm}bpm)\r\n')
         continue
     elif(line.split(":")[0]=="ApproachRate"): #AR
         oldAR=float(line.split(":")[1])
@@ -203,7 +223,7 @@ for line in text.splitlines():
             f.write(f'{ln.split(",")[0]},{int(int(ln.split(",")[1])*NEWlength/OGlength)},{int(int(ln.split(",")[2])*NEWlength/OGlength)}\r\n')
             i=i+1
         continue
-    elif(line=="[TimingPoints]"): #timing points look something like this: time(ms), idk something about the bpm, some more bullshit
+    elif(line=="[TimingPoints]"): #timing points
         y=1
         f.write("[TimingPoints]\r\n")
         i=1
@@ -215,13 +235,13 @@ for line in text.splitlines():
             idk=ln.split(",")[1]
             #bpm
             if(float(ln.split(",")[1])>0):
-                timingbpm=60000/float(ln.split(",")[1])*multiplier #tempo -> bpm then mutiplies it
-                newtimingtempo=60000/timingbpm #bpm -> new tempo
-                idk=newtimingtempo #idk discovered this by reverse engeneering so it might not be correct
+                timingBpm=60000/float(ln.split(",")[1])*multiplier #beat length -> bpm then mutiplies it
+                newBeatLength=60000/timingBpm #bpm -> new beat length
+                idk=newBeatLength 
             #timing
             f.write(f'{int(int(ln.split(",")[0])*NEWlength/OGlength)},{idk},{ln.split(",")[2]},{ln.split(",")[3]},{ln.split(",")[4]},{ln.split(",")[5]},{ln.split(",")[6]},{ln.split(",")[7]}\r\n')
             i=i+1
-    elif(line=="[HitObjects]"):
+    elif(line=="[HitObjects]"): #hit objects
         y=1
         f.write("[HitObjects]\r\n")
         i=1
@@ -233,14 +253,19 @@ for line in text.splitlines():
             print(f"{ln}")
             if(ln[0:-(len(ln)-1)]=="[" or ln==""):
                 break
-            #timing
-            if(ln.split(',')[3]=="12"):
-                f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},{ln.split(",")[3]},{ln.split(",")[4]},{int(int(ln.split(",")[5])*NEWlength/OGlength)},')
-                j=6
+            if(ln.split(',')[3]=="12"): #spinners
+                f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},{ln.split(",")[3]},{ln.split(",")[4]},{int(int(ln.split(",")[5])*NEWlength/OGlength)}')
+                if(int(text.splitlines()[0].split("v")[-1])<=9): #spinners are different in osu file formats lower whan v10
+                    j=5
+                else:
+                    f.write(",")
+                    j=6
             else:
                 f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},')
                 j=3
             while True:
+                if(j==5):
+                    break
                 f.write(f"{ln.split(',')[j]}")
                 if(ln.split(",")[j]==ln.split(",")[-1]): #check if it's the last thing so it won't add a comma at the end of the line
                     f.write('\r\n')
@@ -254,6 +279,4 @@ for line in text.splitlines():
     else:
         f.write(f'{line}\r\n')
 
-
-move(f"{prefix}/temp.osu", f"{prefix}/{suffix[0:-5]} x{formatted_multiplier} ({nextbpm}bpm)].osu")
-
+move(temp, f"{prefix}/{suffix[0:-5]} {formatted_multiplier}x ({nextbpm}bpm)].osu")
