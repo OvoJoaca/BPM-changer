@@ -12,7 +12,7 @@ def get_beatmap(sid):
         output = subprocess.Popen([f"xdotool getwindowname {sid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1]
         try:
             beatmap = output.split('  - ')[1]
-            print(beatmap)
+            #print(beatmap)
             break
         except:
             pass
@@ -70,38 +70,79 @@ def CalculateMultipliedOD(OD, multiplier):
 
 osupath=osupathDOTtxt()
 
-pid = subprocess.Popen(["pidof 'osu!.exe'"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu pid
-#print(pid)
-search = subprocess.Popen([f"xdotool search --pid {pid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu window id list
-#print(search)
-for ok in search.split('\n'): #osu window id
-    if subprocess.Popen([f"xdotool getwindowname {ok}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1].split('  - ')[0] == 'osu!':
-        sid=ok
-        break
-print(sid)
+try:
+    pid = subprocess.Popen(["pidof 'osu!.exe'"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu pid
+    #print(pid)
+    search = subprocess.Popen(["xdotool", "search", "--pid", f"{pid}"], stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu window id list
+    #print(search)
+    for ok in search.split('\n'): #osu window id
+        if subprocess.Popen([f"xdotool getwindowname {ok}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1].split('  - ')[0] == 'osu!':
+            sid=ok
+            break
+    #print(sid)
+    print("Checking for beatmap")
+    beatmap = get_beatmap(sid) #start checking for beatmap
+    beatmapdiff = f"[{beatmap.split(' [', )[-1]}"
+    beatmapname = beatmap.split(beatmapdiff)[0][0:-1]
+    print(f"Beatmap found: {beatmap}")
 
-print("Checking for beatmap")
-beatmap = get_beatmap(sid) #start checking for beatmap
-beatmapdiff = f"[{beatmap.split(' [', )[-1]}"
-beatmapname = beatmap.split(beatmapdiff)[0][0:-1]
-print(f"Beatmap found: {beatmap}")
-
-
-for btmp in os.listdir(f"{osupath}/Songs/"): #check for beatmaps and see if they match
-    #print(btmp)
-    if btmp.split(' [')[-1]=="no video]":
-        btmpnovid = btmp.split(' [')[0]
+    for btmp in os.listdir(f"{osupath}/Songs/"): #check for beatmaps and see if they match
+        #print(btmp)
+        if btmp.split(' [')[-1]=="no video]":
+            btmpnovid = btmp.split(' [')[0]
+        else:
+            btmpnovid = btmp
+        #print(btmp.split(' ', 1)[1])
+        if btmpnovid.split(' ', 1)[1] == beatmapname:
+            for diff in os.listdir(f"{osupath}/Songs/{btmp}"): #this is a mess
+                #print(diff)
+                if(diff[(len(diff)-5):]=="].osu"):
+                    if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
+                        print("pass")
+                        file=f"{osupath}/Songs/{btmp}/{diff}"
+                        break
+except KeyboardInterrupt:
+    print("\nScript closed (KeyboardInterrupt)")
+    exit()
+except:
+    z=input("\nHmm... Something went wrong with beatmap detection. Do you want to specify the pid or path to beatmap folder instead?(Y/n):")
+    if(z=='' or z=='y' or z=='Y' or z=='yes' or z=='Yes' or z=='YES'): #lmao
+        path=input("Beatmap id or path to beatmap folder: ")
+        try:
+            id=int(path)
+            osupath=osupathDOTtxt()
+            for btmp in os.listdir(f"{osupath}/Songs/"):
+                #print(btmp)
+                if(btmp.split(" ")[0]==str(id)):
+                    print(f"Selected beatmapset: {btmp}")
+                    print("Diffs:")
+                    diffs=[]
+                    i=1
+                    for diff in os.listdir(f"{osupath}/Songs/{btmp}/"):
+                        if(diff[(len(diff)-5):]=="].osu"):
+                            print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+                            diffs.append(f"{osupath}/Songs/{btmp}/{diff}")
+                            i=i+1
+                    diff=int(input("Select difficulty: "))
+                    file=diffs[diff-1]
+                    #print(path)
+        except ValueError:
+            osupath=osupathDOTtxt()
+            print(f"Selected beatmapset: {os.path.split(path)[1]}")
+            print("Diffs:")
+            diffs=[]
+            i=1
+            for diff in os.listdir(path):
+                if(diff[(len(diff)-5):]=="].osu"):
+                    print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+                    diffs.append(f"{path}/{diff}")
+                    i=i+1
+            diff=int(input("Select difficulty: "))
+            file=diffs[diff-1]
+            #print(path)
     else:
-        btmpnovid = btmp
-    #print(btmp.split(' ', 1)[1])
-    if btmpnovid.split(' ', 1)[1] == beatmapname:
-        for diff in os.listdir(f"{osupath}/Songs/{btmp}"): #this is a mess
-            #print(diff)
-            if(diff[(len(diff)-5):]=="].osu"):
-                if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
-                    print("pass")
-                    file=f"{osupath}/Songs/{btmp}/{diff}"
-                    break
+        exit()
+
 
 print(file)
 
@@ -321,39 +362,3 @@ for file in os.listdir(f"{prefix}"):
     osz.write(f"{prefix}/{file}")
 osz.close()
 
-
-"""
-path=input("Beatmap id or path to beatmap folder: ")
-try:
-    id=int(path)
-    osupath=osupathDOTtxt()
-    for btmp in os.listdir(f"{osupath}/Songs/"):
-        #print(btmp)
-        if(btmp.split(" ")[0]==str(id)):
-            print(f"Selected beatmapset: {btmp}")
-            print("Diffs:")
-            diffs=[]
-            i=1
-            for diff in os.listdir(f"{osupath}/Songs/{btmp}/"):
-                if(diff[(len(diff)-5):]=="].osu"):
-                    print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
-                    diffs.append(f"{osupath}/Songs/{btmp}/{diff}")
-                    i=i+1
-            diff=int(input("Select difficulty: "))
-            file=diffs[diff-1]
-            #print(path)
-except ValueError:
-    osupath=osupathDOTtxt()
-    print(f"Selected beatmapset: {os.path.split(path)[1]}")
-    print("Diffs:")
-    diffs=[]
-    i=1
-    for diff in os.listdir(path):
-        if(diff[(len(diff)-5):]=="].osu"):
-            print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
-            diffs.append(f"{path}/{diff}")
-            i=i+1
-    diff=int(input("Select difficulty: "))
-    file=diffs[diff-1]
-    #print(path)
-"""
