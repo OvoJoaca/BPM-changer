@@ -3,18 +3,37 @@ import ffmpy
 from pydub import AudioSegment
 import os
 from shutil import move
+from zipfile import ZipFile
+from time import sleep
+import subprocess
+
+def get_beatmap(sid):
+    while True:
+        output = subprocess.Popen([f"xdotool getwindowname {sid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1]
+        try:
+            beatmap = output.split('  - ')[1]
+            print(beatmap)
+            break
+        except:
+            pass
+        sleep(0.1)
+    return beatmap #example: Kano - Stella-rium (Asterisk MAKINA Remix) [Starlight]
+
 
 def osupathDOTtxt(): #check for ospath.txt
+    HOME=os.getenv("HOME")
     try:
-        f = open(f"{os.getcwd()}/osupath.txt", 'r')
+        f = open(f"{HOME}/.config/bpmchanger/osupath.txt", 'r')
         osupath=f.read()
         f.close()
     except:
+        os.mkdir(f"{HOME}/.config/bpmchanger/")
         osupath=input("Path to osu! folder (you won't be asked for it again): ")
         print('')
-        f = open(f"{os.getcwd()}/osupath.txt", 'w')
+        f = open(f"{HOME}/.config/bpmchanger/osupath.txt", 'w')
         f.write(osupath)
         f.close()
+        print(f"osupath.txt written at {HOME}/.config/bpmchanger/osupath.txt")
     return osupath
 
 #this is taken from here https://github.com/FunOrange/osu-trainer/blob/master/osu-trainer/DifficultyCalculator.cs and translated into python
@@ -49,40 +68,43 @@ def CalculateMultipliedOD(OD, multiplier):
     newbpmOD = round(newbpmOD*10)/10
     return newbpmOD
 
+osupath=osupathDOTtxt()
 
-path=input("Beatmap id or path to beatmap folder: ")
-try:
-    id=int(path)
-    osupath=osupathDOTtxt()
-    for btmp in os.listdir(f"{osupath}/Songs/"):
-        #print(btmp)
-        if(btmp.split(" ")[0]==str(id)):
-            print(f"Selected beatmapset: {btmp}")
-            print("Diffs:")
-            diffs=[]
-            i=1
-            for diff in os.listdir(f"{osupath}/Songs/{btmp}/"):
-                if(diff[(len(diff)-5):]=="].osu"):
-                    print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
-                    diffs.append(f"{osupath}/Songs/{btmp}/{diff}")
-                    i=i+1
-            diff=int(input("Select difficulty: "))
-            file=diffs[diff-1]
-            #print(path)
-except ValueError:
-    osupath=osupathDOTtxt()
-    print(f"Selected beatmapset: {os.path.split(path)[1]}")
-    print("Diffs:")
-    diffs=[]
-    i=1
-    for diff in os.listdir(path):
-        if(diff[(len(diff)-5):]=="].osu"):
-            print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
-            diffs.append(f"{path}/{diff}")
-            i=i+1
-    diff=int(input("Select difficulty: "))
-    file=diffs[diff-1]
-    #print(path)
+pid = subprocess.Popen(["pidof 'osu!.exe'"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu pid
+#print(pid)
+search = subprocess.Popen([f"xdotool search --pid {pid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu window id list
+#print(search)
+for ok in search.split('\n'): #osu window id
+    if subprocess.Popen([f"xdotool getwindowname {ok}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1].split('  - ')[0] == 'osu!':
+        sid=ok
+        break
+print(sid)
+
+print("Checking for beatmap")
+beatmap = get_beatmap(sid) #start checking for beatmap
+beatmapdiff = f"[{beatmap.split(' [', )[-1]}"
+beatmapname = beatmap.split(beatmapdiff)[0][0:-1]
+print(f"Beatmap found: {beatmap}")
+
+
+for btmp in os.listdir(f"{osupath}/Songs/"): #check for beatmaps and see if they match
+    #print(btmp)
+    if btmp.split(' [')[-1]=="no video]":
+        btmpnovid = btmp.split(' [')[0]
+    else:
+        btmpnovid = btmp
+    #print(btmp.split(' ', 1)[1])
+    if btmpnovid.split(' ', 1)[1] == beatmapname:
+        for diff in os.listdir(f"{osupath}/Songs/{btmp}"): #this is a mess
+            #print(diff)
+            if(diff[(len(diff)-5):]=="].osu"):
+                if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
+                    print("pass")
+                    file=f"{osupath}/Songs/{btmp}/{diff}"
+                    break
+
+print(file)
+
 
 prefix=os.path.split(file)[0]
 suffix=os.path.split(file)[1]
@@ -98,11 +120,12 @@ if(text.splitlines()[0]=="osu file format v14"):
     pass
 else:
     print(f"(unfortunately) the script can only edit osu file format v14(this map file is: {text.splitlines()[0]})")
-    x = input("Do you wish to continue?(BEWARE THAT SOMETHING MIGHT BREAK)(y,N):")
-    if(x=='y' or x=='Y'):
-        pass
-    else:
+    print("I've done my best job at fixing the issue, but if it doesn't work open an issue at https://github.com/OvoJoaca/BPM-changer/issues")
+    x = input("Do you wish to continue?(Y,n):")
+    if(x=='n' or x=='N'):
         exit()
+    else:
+        pass
 
 
 #get the beatLength
@@ -175,6 +198,10 @@ for line in text.splitlines():
     if(i>1): #skip loop for however many times it went through the while True statements
         i=i-1
         continue
+    elif(line.split(' ')[0]=="osu"):
+        fformat = int(line.split('v')[-1])
+        f.write("osu file format v14")
+        continue
     elif(line.split(": ")[0]=="AudioFilename"): #mou ii kai dt moment
         f.write(f'AudioFilename: {os.path.split(audio)[1]}\r\n')
         continue
@@ -217,7 +244,7 @@ for line in text.splitlines():
         i=1
         while True:
             ln=text.splitlines()[l+i]
-            print(f"ln={ln}")
+            #print(f"ln={ln}")
             if(ln[0:-(len(ln)-2)]=="//"):
                 break
             f.write(f'{ln.split(",")[0]},{int(int(ln.split(",")[1])*NEWlength/OGlength)},{int(int(ln.split(",")[2])*NEWlength/OGlength)}\r\n')
@@ -229,7 +256,7 @@ for line in text.splitlines():
         i=1
         while True:
             ln=text.splitlines()[l+i]
-            print(f"{ln}")
+            #print(f"{ln}")
             if(ln[0:-(len(ln)-1)]=="[" or ln==""):
                 break
             idk=ln.split(",")[1]
@@ -239,8 +266,8 @@ for line in text.splitlines():
                 newBeatLength=60000/timingBpm #bpm -> new beat length
                 idk=newBeatLength 
             #timing
-            f.write(f'{int(int(ln.split(",")[0])*NEWlength/OGlength)},{idk},{ln.split(",")[2]},{ln.split(",")[3]},{ln.split(",")[4]},{ln.split(",")[5]},{ln.split(",")[6]},{ln.split(",")[7]}\r\n')
-            i=i+1
+            f.write(f'{int(int(round(float(ln.split(",")[0])))*NEWlength/OGlength)},{idk},{ln.split(",")[2]},{ln.split(",")[3]},{ln.split(",")[4]},{ln.split(",")[5]},{ln.split(",")[6]},{ln.split(",")[7]}\r\n')
+            i=i+1         # MY GOD ^
     elif(line=="[HitObjects]"): #hit objects
         y=1
         f.write("[HitObjects]\r\n")
@@ -250,29 +277,34 @@ for line in text.splitlines():
                 ln=text.splitlines()[l+i]
             except:
                 break
-            print(f"{ln}")
+            #print(f"{ln}")
             if(ln[0:-(len(ln)-1)]=="[" or ln==""):
                 break
             if(ln.split(',')[3]=="12"): #spinners
-                f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},{ln.split(",")[3]},{ln.split(",")[4]},{int(int(ln.split(",")[5])*NEWlength/OGlength)}')
-                if(int(text.splitlines()[0].split("v")[-1])<=9): #spinners are different in osu file formats lower whan v10
-                    j=5
+                if(fformat<10):
+                    f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},{ln.split(",")[3]},{ln.split(",")[4]},{int(int(ln.split(",")[5])*NEWlength/OGlength)},0:0:0:0:')
                 else:
-                    f.write(",")
+                    f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},{ln.split(",")[3]},{ln.split(",")[4]},{int(int(ln.split(",")[5])*NEWlength/OGlength)},')
                     j=6
+                    while True:
+                        f.write(f"{ln.split(',')[j]}")
+                        if(ln.split(",")[j]==ln.split(",")[-1]): #check if it's the last thing so it won't add a comma at the end of the line
+                            f.write('\r\n')
+                            break
+                        else:
+                            f.write(',')
+                        j=j+1
             else:
                 f.write(f'{ln.split(",")[0]},{ln.split(",")[1]},{int(int(ln.split(",")[2])*NEWlength/OGlength)},')
                 j=3
-            while True:
-                if(j==5):
-                    break
-                f.write(f"{ln.split(',')[j]}")
-                if(ln.split(",")[j]==ln.split(",")[-1]): #check if it's the last thing so it won't add a comma at the end of the line
-                    f.write('\r\n')
-                    break
-                else:
-                    f.write(',')
-                j=j+1
+                while True:
+                    f.write(f"{ln.split(',')[j]}")
+                    if(ln.split(",")[j]==ln.split(",")[-1]): #check if it's the last thing so it won't add a comma at the end of the line
+                        f.write('\r\n')
+                        break
+                    else:
+                        f.write(',')
+                    j=j+1
             i=i+1
     if(y==1):
         y=0
@@ -280,3 +312,48 @@ for line in text.splitlines():
         f.write(f'{line}\r\n')
 
 move(temp, f"{prefix}/{suffix[0:-5]} {formatted_multiplier}x ({nextbpm}bpm)].osu")
+
+#print(f"p: {prefix}")
+#print(f"s: {suffix}")
+#print(f"o: {osupath}")
+osz = ZipFile(f"{osupath}/Songs/{prefix.split('/')[-1]}.osz", 'w')
+for file in os.listdir(f"{prefix}"):
+    osz.write(f"{prefix}/{file}")
+osz.close()
+
+
+"""
+path=input("Beatmap id or path to beatmap folder: ")
+try:
+    id=int(path)
+    osupath=osupathDOTtxt()
+    for btmp in os.listdir(f"{osupath}/Songs/"):
+        #print(btmp)
+        if(btmp.split(" ")[0]==str(id)):
+            print(f"Selected beatmapset: {btmp}")
+            print("Diffs:")
+            diffs=[]
+            i=1
+            for diff in os.listdir(f"{osupath}/Songs/{btmp}/"):
+                if(diff[(len(diff)-5):]=="].osu"):
+                    print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+                    diffs.append(f"{osupath}/Songs/{btmp}/{diff}")
+                    i=i+1
+            diff=int(input("Select difficulty: "))
+            file=diffs[diff-1]
+            #print(path)
+except ValueError:
+    osupath=osupathDOTtxt()
+    print(f"Selected beatmapset: {os.path.split(path)[1]}")
+    print("Diffs:")
+    diffs=[]
+    i=1
+    for diff in os.listdir(path):
+        if(diff[(len(diff)-5):]=="].osu"):
+            print(f"{i}. [{diff.split('[')[-1][0:-5]}]")
+            diffs.append(f"{path}/{diff}")
+            i=i+1
+    diff=int(input("Select difficulty: "))
+    file=diffs[diff-1]
+    #print(path)
+"""
