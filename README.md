@@ -46,6 +46,7 @@ The script will save it in $HOME/.config/bpmchanger/osupath.txt
    ![error](https://cdn.discordapp.com/attachments/551757053564157952/854981451559600128/unknown.png)
    If you want to continue you will have to specify the **beatmapset id or path to beatmap folder** yourself:
    ![id](https://cdn.discordapp.com/attachments/551757053564157952/854981068451872778/unknown.png)
+   
    **Example:**
    /home/ovo/Desktop/osudir/OSU/Songs/830964 Aika - Sakura Trip/
    or
