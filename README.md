@@ -8,6 +8,9 @@ I only tested it on Manjaro KDE Plasma. If it doesn't work on your distro submit
 
 # BPM-changer
 
+## Description
+This is basically a scuffed version of [osutrainer](https://github.com/FunOrange/osu-trainer), but specifically made to run on linux.
+
 ## Installation
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install ffmpy and pydub.
@@ -55,4 +58,21 @@ The script will save it in $HOME/.config/bpmchanger/osupath.txt
 5. Go back to the script and specify the changed bpm.
 
 6. Wait a bit until the process finishes, go back to osu and it should detect a new beatmap automatically.
+
+## How it works
+
+1. It gets the name of the map from the title of the osu window using xdotool.
+
+2. It searches for the map in your Songs folder.
+
+3. It changes the speed of the autio to the wanted bpm.
+
+4. It starts rewriting the .osu file and calculating the AR and OD.
+
+5. After that, it puts it in an .osz archive to osu can automatically notice the change.
+
+6. That's it!
+
+
+
 
