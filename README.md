@@ -69,7 +69,7 @@ The script will save it in $HOME/.config/bpmchanger/osupath.txt
 
 4. It starts rewriting the .osu file and calculating the AR and OD.
 
-5. After that, it puts it in an .osz archive to osu can automatically notice the change.
+5. After that, it puts it in an .osz archive so osu can automatically notice the change.
 
 6. That's it!
 
