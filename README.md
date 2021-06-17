@@ -19,7 +19,7 @@ Use the package manager [pip](https://pip.pypa.io/en/stable/) to install ffmpy a
 $ sudo pip install ffmpy pydub
 ```
 
-Use your package manager to install ffpeg.
+Use your package manager to install ffmpeg.
 
 Examples:
 ```bash
