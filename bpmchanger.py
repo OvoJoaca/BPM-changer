@@ -105,7 +105,7 @@ except KeyboardInterrupt:
     print("\nScript closed (KeyboardInterrupt)")
     exit()
 except:
-    z=input("\nHmm... Something went wrong with beatmap detection. Do you want to specify the pid or path to beatmap folder instead?(Y/n):")
+    z=input("\nHmm... Something went wrong with beatmap detection. Do you want to specify the beatmapset id or path to beatmap folder instead?(Y/n):")
     if(z=='' or z=='y' or z=='Y' or z=='yes' or z=='Yes' or z=='YES'): #lmao
         path=input("Beatmap id or path to beatmap folder: ")
         try:
