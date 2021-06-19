@@ -7,6 +7,50 @@ from zipfile import ZipFile
 from time import sleep
 import subprocess
 
+def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope)
+    beatLength=0                                                                            #^
+    l=-1                                                                                    #|
+    x=1                                                                                     #|
+    lineDifference=0                                                                        #|
+    l1=0                                                                                    #|
+    for line in text.splitlines():                                                          #|
+        l=l+1                                                                               #|
+        i=1                                                                                 #|
+        if line == "[TimingPoints]":                                                        #|
+            while True:                                                                     #|
+                try:                                                                        #|
+                    splitlinesText=float(text.splitlines()[l+i].split(",")[1])              #|
+                except:                                                                     #|
+                    break                                                                   #|
+                if(splitlinesText>0 and x%2==1):                                            #|
+                    l1=l+i                                                                  #|
+                    x=x+1                                                                   #|
+                elif(splitlinesText>0 and x%2==0):                                          #|
+                    l2=l+i                                                                  #|
+                    if l2-l1>lineDifference:                                                #|
+                        lineDifference=l2-l1                                                #|
+                        linePog=l1 #this is the line where this is located--------------------
+                    l1=l2
+                elif(text.splitlines()[l+i]=="[Colours]"):
+                    break
+                i=i+1
+            break
+        
+    #print(lineDifference)
+    #print(linePog)
+    
+    l=-1
+    for line in text.splitlines():
+        l=l+1
+        if l==linePog:
+            beatLength=float(line.split(',')[1])
+    
+    #convert beatLength to BPM
+    curbpm=round(60000/beatLength)
+    print(f'BPM: {curbpm}')
+    return curbpm
+
+
 def get_beatmap(sid):
     while True:
         output = subprocess.Popen([f"xdotool getwindowname {sid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1]
@@ -20,7 +64,7 @@ def get_beatmap(sid):
     return beatmap #example: Kano - Stella-rium (Asterisk MAKINA Remix) [Starlight]
 
 
-def osupathDOTtxt(): #check for ospath.txt
+def osupathDOTtxt(): #check for osupath.txt
     HOME=os.getenv("HOME")
     try:
         f = open(f"{HOME}/.config/bpmchanger/osupath.txt", 'r')
@@ -70,7 +114,7 @@ def CalculateMultipliedOD(OD, multiplier):
 
 osupath=osupathDOTtxt()
 
-try:
+try: #automatically get the beatmap
     pid = subprocess.Popen(["pidof 'osu!.exe'"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu pid
     #print(pid)
     search = subprocess.Popen(["xdotool", "search", "--pid", f"{pid}"], stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu window id list
@@ -104,7 +148,7 @@ try:
 except KeyboardInterrupt:
     print("\nScript closed (KeyboardInterrupt)")
     exit()
-except:
+except: #if it doesn't work, ask the user for the id or path to beatmap
     z=input("\nHmm... Something went wrong with beatmap detection. Do you want to specify the beatmapset id or path to beatmap folder instead?(Y/n):")
     if(z=='' or z=='y' or z=='Y' or z=='yes' or z=='Yes' or z=='YES'): #lmao
         path=input("Beatmap id or path to beatmap folder: ")
@@ -169,20 +213,8 @@ else:
         pass
 
 
-#get the beatLength
-l=-1
-for line in text.splitlines():
-    l=l+1
-    if(line=="[TimingPoints]"):
-        beatLength=float(text.splitlines()[l+1].split(',')[1])
-        print(beatLength)
-        break
-
-#convert beatLength to BPM
-curbpm=math.ceil(60000/beatLength)
-print(f'bpm={curbpm}')
-
-nextbpm=input('nextbpm=')
+curbpm=get_bpm(text)
+nextbpm=input('NextBPM: ')
 try:
     nextbpm=float(nextbpm)
 except:
@@ -190,8 +222,24 @@ except:
     exit()
 
 multiplier=nextbpm/curbpm
-formatted_multiplier="{:.3f}".format(round(multiplier, 3)) #only show 3 decimals of the multiplier for looks' sake
+formatted_multiplier="{:.3f}".format(round(multiplier, 3)) #only show 3 decimals of the multiplier for good looks
 
+
+#to do: When AR or OD > 10 play with DT
+""" 
+for line in text.splitlines():
+    if(line.split(":")[0]=="ApproachRate"): #AR
+        oldAR=float(line.split(":")[1])
+        newAR=CalculateMultipliedAR(oldAR, multiplier)
+        if(newAR>10):
+            
+            newAR=10
+    elif(line.split(":")[0]=="OverallDifficulty"): #OD
+        oldOD=float(line.split(":")[1])
+        newOD=CalculateMultipliedOD(oldOD, multiplier)
+        if(newOD>10):
+            newOD=10
+"""
 
 
 #get the path to the audio file
@@ -203,7 +251,7 @@ print(OGaudio)
 
 #convert to wav
 audio=f"{OGaudio[0:-4]} {formatted_multiplier}x ({nextbpm}bpm).wav"
-NEWaudio=AudioSegment.from_mp3(OGaudio).export(audio, format='wav')
+NEWaudio=AudioSegment.from_file(OGaudio).export(audio, format='wav')
 
 #get the length of the original audio file
 OGlength=len(AudioSegment.from_wav(audio))
