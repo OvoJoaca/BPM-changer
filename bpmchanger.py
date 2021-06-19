@@ -7,7 +7,7 @@ from zipfile import ZipFile
 from time import sleep
 import subprocess
 
-def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope)
+def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope) 
     beatLength=0                                                                            #^
     l=-1                                                                                    #|
     x=1                                                                                     #|
@@ -142,7 +142,7 @@ try: #automatically get the beatmap
                 #print(diff)
                 if(diff[(len(diff)-5):]=="].osu"):
                     if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
-                        print("pass")
+                        #print("pass")
                         file=f"{osupath}/Songs/{btmp}/{diff}"
                         break
 except KeyboardInterrupt:
