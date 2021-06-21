@@ -8,45 +8,59 @@ from time import sleep
 import subprocess
 
 def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope) 
-    beatLength=0                                                                            #^
-    l=-1                                                                                    #|
-    x=1                                                                                     #|
-    lineDifference=0                                                                        #|
-    l1=0                                                                                    #|
-    for line in text.splitlines():                                                          #|
-        l=l+1                                                                               #|
-        i=1                                                                                 #|
-        if line == "[TimingPoints]":                                                        #|
-            while True:                                                                     #|
-                try:                                                                        #|
-                    splitlinesText=float(text.splitlines()[l+i].split(",")[1])              #|
-                except:                                                                     #|
-                    break                                                                   #|
-                if(splitlinesText>0 and x%2==1):                                            #|
-                    l1=l+i                                                                  #|
-                    x=x+1                                                                   #|
-                elif(splitlinesText>0 and x%2==0):                                          #|
-                    l2=l+i                                                                  #|
-                    if l2-l1>lineDifference:                                                #|
-                        lineDifference=l2-l1                                                #|
-                        linePog=l1 #this is the line where this is located--------------------
-                    l1=l2
-                elif(text.splitlines()[l+i]=="[Colours]"):
+    l=-1
+    for line in text.splitlines(): #check if the game has only one beatLength 
+        if line == "[TimingPoints]":
+            l=l+1
+            j=1
+            y=0
+            while True:
+                try:
+                    splitlinesText=float(text.splitlines()[l+j].split(",")[1])
+                except:
                     break
-                i=i+1
-            break
-        
-    #print(lineDifference)
-    #print(linePog)
-    
+                if(splitlinesText>0):
+                    y=y+1
+
     l=-1
     for line in text.splitlines():
         l=l+1
-        if l==linePog:
-            beatLength=float(line.split(',')[1])
+        i=1
+        if line == "[TimingPoints]":
+            if y>=1: #if it has more than one, get the one with the most changes in it, basically lowestBPM-highestBPM(*this*)
+                beatLength=0
+                x=1
+                lineDifference=0
+                l1=0
+                while True:
+                    try:
+                        splitlinesText=float(text.splitlines()[l+i].split(",")[1])
+                    except:
+                        break
+                    if(splitlinesText>0 and x%2==1):
+                        l1=l+i
+                        x=x+1
+                    elif(splitlinesText>0 and x%2==0):
+                        l2=l+i
+                        if l2-l1>lineDifference:
+                            lineDifference=l2-l1
+                            linePog=l1 #this is the line where this is located
+                        l1=l2
+                    elif(text.splitlines()[l+i]=="[Colours]"):
+                        break
+                    i=i+1    
+                l=-1
+                for line in text.splitlines():
+                    l=l+1
+                    if l==linePog:
+                        beatLength=float(line.split(',')[1])
+                break
+            else: #else get the first and only beatLength
+                beatLength=float(text.splitlines()[l+1].split(',')[1])
+    
     
     #convert beatLength to BPM
-    curbpm=round(60000/beatLength)
+    curbpm=round(60000/beatLength) 
     print(f'BPM: {curbpm}')
     return curbpm
 
@@ -56,7 +70,6 @@ def get_beatmap(sid):
         output = subprocess.Popen([f"xdotool getwindowname {sid}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1]
         try:
             beatmap = output.split('  - ')[1]
-            #print(beatmap)
             break
         except:
             pass
@@ -79,6 +92,9 @@ def osupathDOTtxt(): #check for osupath.txt
         f.close()
         print(f"osupath.txt written at {HOME}/.config/bpmchanger/osupath.txt")
     return osupath
+
+
+
 
 #this is taken from here https://github.com/FunOrange/osu-trainer/blob/master/osu-trainer/DifficultyCalculator.cs and translated into python
 def ApproachRateToMs(approachRate):
@@ -112,37 +128,35 @@ def CalculateMultipliedOD(OD, multiplier):
     newbpmOD = round(newbpmOD*10)/10
     return newbpmOD
 
+
+
+
 osupath=osupathDOTtxt()
 
 try: #automatically get the beatmap
     pid = subprocess.Popen(["pidof 'osu!.exe'"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu pid
-    #print(pid)
     search = subprocess.Popen(["xdotool", "search", "--pid", f"{pid}"], stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1] #osu window id list
-    #print(search)
     for ok in search.split('\n'): #osu window id
         if subprocess.Popen([f"xdotool getwindowname {ok}"], shell=True, stdout=subprocess.PIPE).stdout.read().decode('utf-8')[0:-1].split('  - ')[0] == 'osu!':
             sid=ok
             break
-    #print(sid)
+    
     print("Checking for beatmap")
     beatmap = get_beatmap(sid) #start checking for beatmap
+    #beatmap = beatmap.replace('~', '_')
     beatmapdiff = f"[{beatmap.split(' [', )[-1]}"
     beatmapname = beatmap.split(beatmapdiff)[0][0:-1]
     print(f"Beatmap found: {beatmap}")
 
     for btmp in os.listdir(f"{osupath}/Songs/"): #check for beatmaps and see if they match
-        #print(btmp)
         if btmp.split(' [')[-1]=="no video]":
             btmpnovid = btmp.split(' [')[0]
         else:
             btmpnovid = btmp
-        #print(btmp.split(' ', 1)[1])
         if btmpnovid.split(' ', 1)[1] == beatmapname:
             for diff in os.listdir(f"{osupath}/Songs/{btmp}"): #this is a mess
-                #print(diff)
                 if(diff[(len(diff)-5):]=="].osu"):
                     if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
-                        #print("pass")
                         file=f"{osupath}/Songs/{btmp}/{diff}"
                         break
 except KeyboardInterrupt:
@@ -156,7 +170,6 @@ except: #if it doesn't work, ask the user for the id or path to beatmap
             id=int(path)
             osupath=osupathDOTtxt()
             for btmp in os.listdir(f"{osupath}/Songs/"):
-                #print(btmp)
                 if(btmp.split(" ")[0]==str(id)):
                     print(f"Selected beatmapset: {btmp}")
                     print("Diffs:")
@@ -169,7 +182,6 @@ except: #if it doesn't work, ask the user for the id or path to beatmap
                             i=i+1
                     diff=int(input("Select difficulty: "))
                     file=diffs[diff-1]
-                    #print(path)
         except ValueError:
             osupath=osupathDOTtxt()
             print(f"Selected beatmapset: {os.path.split(path)[1]}")
@@ -183,7 +195,6 @@ except: #if it doesn't work, ask the user for the id or path to beatmap
                     i=i+1
             diff=int(input("Select difficulty: "))
             file=diffs[diff-1]
-            #print(path)
     else:
         exit()
 
