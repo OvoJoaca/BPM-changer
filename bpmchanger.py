@@ -10,8 +10,8 @@ import subprocess
 def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope) 
     l=-1
     for line in text.splitlines(): #check if the game has only one beatLength 
+        l=l+1
         if line == "[TimingPoints]":
-            l=l+1
             j=1
             y=0
             while True:
@@ -21,6 +21,7 @@ def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-
                     break
                 if(splitlinesText>0):
                     y=y+1
+                j=j+1
 
     l=-1
     for line in text.splitlines():
@@ -56,6 +57,7 @@ def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-
                         beatLength=float(line.split(',')[1])
                 break
             else: #else get the first and only beatLength
+                print('else')
                 beatLength=float(text.splitlines()[l+1].split(',')[1])
     
     
@@ -127,6 +129,13 @@ def CalculateMultipliedOD(OD, multiplier):
     newbpmOD = MsToOverallDifficulty(newbpmMS)
     newbpmOD = round(newbpmOD*10)/10
     return newbpmOD
+
+def checkIfItsANumber(n):
+    try:
+        n=float(n)
+        return n
+    except:
+        return ''
 
 
 
@@ -226,6 +235,8 @@ else:
 
 curbpm=get_bpm(text)
 nextbpm=input('NextBPM: ')
+if nextbpm=='':
+    nextbpm=curbpm
 try:
     nextbpm=float(nextbpm)
 except:
@@ -234,6 +245,36 @@ except:
 
 multiplier=nextbpm/curbpm
 formatted_multiplier="{:.3f}".format(round(multiplier, 3)) #only show 3 decimals of the multiplier for good looks
+
+for line in text.splitlines():
+    if(line.split(":")[0]=="ApproachRate"): #AR
+        oldAR=round(float(line.split(":")[1]), 1)
+        newAR=checkIfItsANumber(input(f'AR ({oldAR}): '))
+        if(newAR==""):
+            newAR=CalculateMultipliedAR(oldAR, multiplier)
+        if(newAR>10):
+            newAR=10
+    elif(line.split(":")[0]=="OverallDifficulty"): #OD
+        oldOD=round(float(line.split(":")[1]), 1)
+        newOD=checkIfItsANumber(input(f'OD ({oldOD}): '))
+        if(newOD==""):
+            newOD=CalculateMultipliedOD(oldOD, multiplier)
+        if(newOD>10):
+            newOD=10
+    elif(line.split(":")[0]=="HPDrainRate"): #OD
+        oldHP=round(float(line.split(":")[1]), 1)
+        newHP=checkIfItsANumber(input(f'HP ({oldHP}): '))
+        if(newHP==''):
+            newHP=oldHP
+        if(newHP>10):
+            newHP=10
+    elif(line.split(":")[0]=="CircleSize"): #OD
+        oldCS=round(float(line.split(":")[1]), 1)
+        newCS=checkIfItsANumber(input(f'CS ({oldCS}): '))
+        if(newCS==''):
+            newCS=oldCS
+        if(newCS>10):
+            newCS=10
 
 
 #to do: When AR or OD > 10 play with DT
@@ -326,18 +367,16 @@ for line in text.splitlines():
         f.write(f'Version:{line.split(":")[1]} {formatted_multiplier}x ({nextbpm}bpm)\r\n')
         continue
     elif(line.split(":")[0]=="ApproachRate"): #AR
-        oldAR=float(line.split(":")[1])
-        newAR=CalculateMultipliedAR(oldAR, multiplier)
-        if(newAR>10):
-            newAR=10
         f.write(f"ApproachRate:{newAR}\r\n")
         continue
     elif(line.split(":")[0]=="OverallDifficulty"): #OD
-        oldOD=float(line.split(":")[1])
-        newOD=CalculateMultipliedOD(oldOD, multiplier)
-        if(newOD>10):
-            newOD=10
         f.write(f"OverallDifficulty:{newOD}\r\n")
+        continue
+    elif(line.split(":")[0]=="HPDrainRate"): #AR
+        f.write(f"HPDrainRate:{newHP}\r\n")
+        continue
+    elif(line.split(":")[0]=="CircleSize"): #AR
+        f.write(f"CircleSize:{newCS}\r\n")
         continue
     elif(line=="//Break Periods"): #break periods
         f.write('//Break Periods\r\n')
