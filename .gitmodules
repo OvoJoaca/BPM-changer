@@ -1,6 +1,0 @@
-[submodule "osudbtools"]
-	path = osudbtools
-	url = https://github.com/ovo2204/osu-db-tools
-[submodule "osudbtoolslmao"]
-	path = osudbtoolslmao
-	url = https://github.com/ovo2204/osu-db-tools
