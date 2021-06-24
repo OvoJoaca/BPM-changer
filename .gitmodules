@@ -1,0 +1,3 @@
+[submodule "osudbtools"]
+	path = osudbtools
+	url = https://github.com/ovo2204/osu-db-tools
