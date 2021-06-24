@@ -6,6 +6,9 @@ from shutil import move
 from zipfile import ZipFile
 from time import sleep
 import subprocess
+import sqlite3
+from osudbtools.osu_to_sqlite import create_db #this is https://github.com/jaasonw/osu-db-tools/blob/master/osu_to_sqlite.py
+                                                #huge thanks to the creator of this script, I wouldn't be able to figure it out myself
 
 def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-highestBPM(*it gets this*)" (I hope) 
     l=-1
@@ -40,6 +43,7 @@ def get_bpm(text : str): #for refference, in game you will see: "BPM: lowestBPM-
                         break
                     if(splitlinesText>0 and x%2==1):
                         l1=l+i
+                        linePog=l1
                         x=x+1
                     elif(splitlinesText>0 and x%2==0):
                         l2=l+i
@@ -153,24 +157,28 @@ try: #automatically get the beatmap
     print("Checking for beatmap")
     beatmap = get_beatmap(sid) #start checking for beatmap
     #beatmap = beatmap.replace('~', '_')
-    beatmapdiff = f"[{beatmap.split(' [', )[-1]}"
-    beatmapname = beatmap.split(beatmapdiff)[0][0:-1]
+    beatmapdiff = f"{beatmap.split(' [', )[-1][0:-1]}"
+    print(beatmapdiff)
+    beatmapname = beatmap.split(beatmapdiff)[0][0:-1].split(' - ')[-1][0:-1]
+    print(beatmapname)
     print(f"Beatmap found: {beatmap}")
 
-    for btmp in os.listdir(f"{osupath}/Songs/"): #check for beatmaps and see if they match
-        if btmp.split(' [')[-1]=="no video]":
-            btmpnovid = btmp.split(' [')[0]
-        else:
-            btmpnovid = btmp
-        if btmpnovid.split(' ', 1)[1] == beatmapname:
-            for diff in os.listdir(f"{osupath}/Songs/{btmp}"): #this is a mess
-                if(diff[(len(diff)-5):]=="].osu"):
-                    if(diff.split(' [')[-1][:-4]==beatmapdiff[1:]):
-                        file=f"{osupath}/Songs/{btmp}/{diff}"
-                        break
-except KeyboardInterrupt:
-    print("\nScript closed (KeyboardInterrupt)")
-    exit()
+
+    create_db(f"{osupath}/osu!.db") #get the path of the beatmap from osu.db
+    conn = sqlite3.connect('cache.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM maps")
+    pog=c.fetchall()
+    for x in pog:
+        if x[2]==beatmapname and x[5]==beatmapdiff:
+            #print(f"beatmap_set_id: {x[23]}")
+            #print(f"folder_path: {x[39]}")
+            #print(f".osu_path: {x[8]}")
+            #print(f"full path: {x[39]}/{x[8]}")
+            file=f"{osupath}/Songs/{x[39]}/{x[8]}"
+            break
+    os.remove("cache.db")
+
 except: #if it doesn't work, ask the user for the id or path to beatmap
     z=input("\nHmm... Something went wrong with beatmap detection. Do you want to specify the beatmapset id or path to beatmap folder instead?(Y/n):")
     if(z=='' or z=='y' or z=='Y' or z=='yes' or z=='Yes' or z=='YES'): #lmao
@@ -207,8 +215,10 @@ except: #if it doesn't work, ask the user for the id or path to beatmap
     else:
         exit()
 
-
-print(file)
+try:
+    print(file)
+except NameError:
+    print("beatmap folder wasn't found")
 
 
 prefix=os.path.split(file)[0]
@@ -245,36 +255,6 @@ except:
 
 multiplier=nextbpm/curbpm
 formatted_multiplier="{:.3f}".format(round(multiplier, 3)) #only show 3 decimals of the multiplier for good looks
-
-for line in text.splitlines():
-    if(line.split(":")[0]=="ApproachRate"): #AR
-        oldAR=round(float(line.split(":")[1]), 1)
-        newAR=checkIfItsANumber(input(f'AR ({oldAR}): '))
-        if(newAR==""):
-            newAR=CalculateMultipliedAR(oldAR, multiplier)
-        if(newAR>10):
-            newAR=10
-    elif(line.split(":")[0]=="OverallDifficulty"): #OD
-        oldOD=round(float(line.split(":")[1]), 1)
-        newOD=checkIfItsANumber(input(f'OD ({oldOD}): '))
-        if(newOD==""):
-            newOD=CalculateMultipliedOD(oldOD, multiplier)
-        if(newOD>10):
-            newOD=10
-    elif(line.split(":")[0]=="HPDrainRate"): #OD
-        oldHP=round(float(line.split(":")[1]), 1)
-        newHP=checkIfItsANumber(input(f'HP ({oldHP}): '))
-        if(newHP==''):
-            newHP=oldHP
-        if(newHP>10):
-            newHP=10
-    elif(line.split(":")[0]=="CircleSize"): #OD
-        oldCS=round(float(line.split(":")[1]), 1)
-        newCS=checkIfItsANumber(input(f'CS ({oldCS}): '))
-        if(newCS==''):
-            newCS=oldCS
-        if(newCS>10):
-            newCS=10
 
 
 #to do: When AR or OD > 10 play with DT
@@ -319,6 +299,7 @@ move(audioTemp, audio)
 NEWaudio=AudioSegment.from_wav(audio)
 NEWaudio.export(f"{audio[0:-4]}.mp3", format='mp3')
 NEWlength=len(NEWaudio) #get the length of the new audio file
+os.remove(audio)
 audio=f"{audio[0:-4]}.mp3"
 
 
@@ -366,18 +347,46 @@ for line in text.splitlines():
         diff=line.split(":")[1]
         f.write(f'Version:{line.split(":")[1]} {formatted_multiplier}x ({nextbpm}bpm)\r\n')
         continue
-    elif(line.split(":")[0]=="ApproachRate"): #AR
+    
+    if(line.split(":")[0]=="ApproachRate"): #AR
+        oldAR=round(float(line.split(":")[1]), 1)
+        newAR=CalculateMultipliedAR(oldAR, multiplier)
+        newAR=checkIfItsANumber(input(f'AR ({newAR}): '))
+        if(newAR==""):
+            newAR=CalculateMultipliedAR(oldAR, multiplier)
+        if(newAR>10):
+            newAR=10
         f.write(f"ApproachRate:{newAR}\r\n")
         continue
     elif(line.split(":")[0]=="OverallDifficulty"): #OD
+        oldOD=round(float(line.split(":")[1]), 1)
+        newOD=CalculateMultipliedOD(oldOD, multiplier)
+        newOD=checkIfItsANumber(input(f'OD ({newOD}): '))
+        if(newOD==""):
+            newOD=CalculateMultipliedOD(oldOD, multiplier)
+        if(newOD>10):
+            newOD=10
         f.write(f"OverallDifficulty:{newOD}\r\n")
         continue
-    elif(line.split(":")[0]=="HPDrainRate"): #AR
+    elif(line.split(":")[0]=="HPDrainRate"): #HP
+        oldHP=round(float(line.split(":")[1]), 1)
+        newHP=checkIfItsANumber(input(f'HP ({oldHP}): '))
+        if(newHP==''):
+            newHP=oldHP
+        if(newHP>10):
+            newHP=10
         f.write(f"HPDrainRate:{newHP}\r\n")
         continue
-    elif(line.split(":")[0]=="CircleSize"): #AR
+    elif(line.split(":")[0]=="CircleSize"): #CS
+        oldCS=round(float(line.split(":")[1]), 1)
+        newCS=checkIfItsANumber(input(f'CS ({oldCS}): '))
+        if(newCS==''):
+            newCS=oldCS
+        if(newCS>10):
+            newCS=10
         f.write(f"CircleSize:{newCS}\r\n")
         continue
+
     elif(line=="//Break Periods"): #break periods
         f.write('//Break Periods\r\n')
         i=1
@@ -455,8 +464,9 @@ move(temp, f"{prefix}/{suffix[0:-5]} {formatted_multiplier}x ({nextbpm}bpm)].osu
 #print(f"p: {prefix}")
 #print(f"s: {suffix}")
 #print(f"o: {osupath}")
+#osz = ZipFile(f"{osupath}/Songs/{prefix.split('/')[-1]}.osz", 'w')
 osz = ZipFile(f"{osupath}/Songs/{prefix.split('/')[-1]}.osz", 'w')
-for file in os.listdir(f"{prefix}"):
-    osz.write(f"{prefix}/{file}")
+#for file in os.listdir(f"{prefix}"):
+#    osz.write(filename=f"{prefix}/{file}", arcname=f"{file}")
 osz.close()
 
