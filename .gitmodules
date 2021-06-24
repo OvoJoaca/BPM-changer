@@ -1,0 +1,3 @@
+[submodule "osudbtools"]
+	path = osudbtools
+	url = https://github.com/jaasonw/osu-db-tools
