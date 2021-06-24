@@ -63,13 +63,13 @@ The script will save it in $HOME/.config/bpmchanger/osupath.txt
 
 1. It gets the name of the map from the title of the osu window using xdotool.
 
-2. It searches for the map in your Songs folder.
+2. It searches for the map path in osu!.db using [osu-db-tools](https://github.com/jaasonw/osu-db-tools).
 
-3. It changes the speed of the autio to the wanted bpm.
+3. It changes the speed of the audio to the wanted bpm.
 
 4. It starts rewriting the .osu file and calculating the AR and OD.
 
-5. After that, it puts it in an .osz archive so osu can automatically notice the change.
+5. After that, it creates an .osz archive so osu can notice the change.
 
 6. That's it!
 
