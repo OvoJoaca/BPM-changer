@@ -1,6 +1,7 @@
 ### Disclamer!!!
 This script is specifically made for **linux** users!
-Also, Ir's really bad
+
+Also, It's really bad
 
 It will not work on windows!
 
